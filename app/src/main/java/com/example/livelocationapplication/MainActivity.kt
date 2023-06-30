@@ -2,14 +2,26 @@ package com.example.livelocationapplication
 
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.drawable.Drawable
 import android.location.Location
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Looper
+import android.util.DisplayMetrics
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -40,6 +52,10 @@ import com.google.firebase.dynamiclinks.FirebaseDynamicLinks
 import com.google.firebase.dynamiclinks.ktx.androidParameters
 import com.google.firebase.dynamiclinks.ktx.dynamicLinks
 import com.google.firebase.ktx.Firebase
+import com.squareup.picasso.Picasso
+import de.hdodenhof.circleimageview.CircleImageView
+import java.net.HttpURLConnection
+import java.net.URL
 
 
 class MainActivity : AppCompatActivity() , OnMapReadyCallback {
@@ -84,6 +100,8 @@ class MainActivity : AppCompatActivity() , OnMapReadyCallback {
 
     override fun onMapReady(map: GoogleMap) {
         googleMap = map
+
+        googleMap?.mapType = GoogleMap.MAP_TYPE_HYBRID
     }
 
     override fun onResume() {
@@ -180,7 +198,9 @@ class MainActivity : AppCompatActivity() , OnMapReadyCallback {
         ) {
             return
         }
+
         googleMap?.isMyLocationEnabled = true
+
         val database: FirebaseDatabase = FirebaseDatabase.getInstance()
         val ref: DatabaseReference = database.getReference(crtLocation)
         ref.setValue(latLng)
@@ -193,6 +213,7 @@ class MainActivity : AppCompatActivity() , OnMapReadyCallback {
 
     private val locationListener = object : ValueEventListener {
         //     @SuppressLint("LongLogTag")
+        @SuppressLint("UseCompatLoadingForDrawables")
         override fun onDataChange(snapshot: DataSnapshot) {
             if(snapshot.exists()){
                 val location = snapshot.child(userLocation).getValue(LocationInfo::class.java)
@@ -201,29 +222,60 @@ class MainActivity : AppCompatActivity() , OnMapReadyCallback {
 
                 if (locationLat != null && locationLong!= null) {
 
-                    /*val latLng = LatLng(locationLat, locationLong)
-
-                    if (userLocationMarker == null) { // First time adding marker to map
-                        userLocationMarker = googleMap?.addMarker(
-                            MarkerOptions().position(latLng)
-                                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ROSE))
-                        )
-                        MarkerAnimation.animateMarkerToICS(userLocationMarker, latLng, Spherical())
-                        googleMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18f))
-                    } else {
-                        MarkerAnimation.animateMarkerToICS(userLocationMarker, latLng, Spherical())
-                        googleMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18f))
-                    }*/
-
                     val latLng = LatLng(locationLat, locationLong)
 
-                    if (userLocationMarker == null) userLocationMarker = googleMap?.addMarker(
+                    Picasso.get().load("https://s3.eu-west-1.amazonaws.com/easyday-bucket/profile_images/cropped7635074666646685692.jpg").into(object : com.squareup.picasso.Target {
+                        override fun onBitmapLoaded(bitmap: Bitmap?, from: Picasso.LoadedFrom?) {
+
+                            val marker: View = (getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater).inflate(R.layout.custom_marker_layout, null)
+
+                            val markerImage = marker.findViewById<View>(R.id.user_dp) as CircleImageView
+                            markerImage.setImageBitmap(bitmap)
+                            val textName = marker.findViewById<View>(R.id.name) as TextView
+                            textName.text = "•"
+
+                            val displayMetrics = DisplayMetrics()
+                            (this@MainActivity as Activity).windowManager.defaultDisplay.getMetrics(displayMetrics)
+                            marker.layoutParams = ViewGroup.LayoutParams(52, ViewGroup.LayoutParams.WRAP_CONTENT)
+                            marker.measure(displayMetrics.widthPixels, displayMetrics.heightPixels)
+                            marker.layout(0, 0, displayMetrics.widthPixels, displayMetrics.heightPixels)
+                            marker.buildDrawingCache()
+                            val bitmapIcon = Bitmap.createBitmap(
+                                marker.measuredWidth,
+                                marker.measuredHeight,
+                                Bitmap.Config.ARGB_8888
+                            )
+                            val canvas = Canvas(bitmapIcon)
+                            marker.draw(canvas)
+
+                            if (userLocationMarker == null) userLocationMarker = googleMap?.addMarker(
+                                MarkerOptions().icon(bitmapIcon?.let {
+                                    BitmapDescriptorFactory.fromBitmap(
+                                        it
+                                    )
+                                }).position(latLng)
+                            ) else MarkerAnimation.animateMarkerToGB(
+                                userLocationMarker,
+                                latLng,
+                                LatLngInterpolator.Spherical()
+                            )
+
+                        }
+
+                        override fun onPrepareLoad(placeHolderDrawable: Drawable?) {}
+
+                        override fun onBitmapFailed(e: Exception?, errorDrawable: Drawable?) {}
+                        
+                    })
+
+                   /* if (userLocationMarker == null) userLocationMarker = googleMap?.addMarker(
                         MarkerOptions().icon(BitmapDescriptorFactory.fromResource(R.drawable.marker)).position(latLng)
                     ) else MarkerAnimation.animateMarkerToGB(
                         userLocationMarker,
                         latLng,
                         LatLngInterpolator.Spherical()
-                    )
+                    )*/
+
                 }
 
             }
