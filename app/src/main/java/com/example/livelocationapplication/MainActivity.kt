@@ -8,7 +8,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
 import android.location.Location
@@ -31,8 +30,10 @@ import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationRequest.Builder.IMPLICIT_MIN_UPDATE_INTERVAL
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -59,8 +60,6 @@ import java.net.URL
 
 
 class MainActivity : AppCompatActivity() , OnMapReadyCallback {
-
-    private val MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 5445
 
     private var googleMap: GoogleMap? = null
     private var fusedLocationProviderClient: FusedLocationProviderClient? = null
@@ -126,9 +125,17 @@ class MainActivity : AppCompatActivity() , OnMapReadyCallback {
     }
 
     private fun startCurrentLocationUpdates() {
-        val locationRequest: LocationRequest = LocationRequest.create()
+        /*val locationRequest: LocationRequest = LocationRequest.create()
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
-        locationRequest.setInterval(5000)
+        locationRequest.setInterval(5000)*/
+
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000)
+            .apply {
+                setWaitForAccurateLocation(false)
+                setMinUpdateIntervalMillis(IMPLICIT_MIN_UPDATE_INTERVAL)
+                setMaxUpdateDelayMillis(5000)
+            }.build()
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (ActivityCompat.checkSelfPermission(
                     this,
@@ -142,7 +149,7 @@ class MainActivity : AppCompatActivity() , OnMapReadyCallback {
                     this@MainActivity, arrayOf(
                         Manifest.permission.ACCESS_FINE_LOCATION,
                         Manifest.permission.ACCESS_COARSE_LOCATION),
-                    MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION
+                    555
                 )
                 return
             }
@@ -188,6 +195,8 @@ class MainActivity : AppCompatActivity() , OnMapReadyCallback {
             LatLngInterpolator.Spherical()
         )*/
 
+        googleMap?.isMyLocationEnabled = true
+
         if (ActivityCompat.checkSelfPermission(
                 this,
                 Manifest.permission.ACCESS_FINE_LOCATION
@@ -198,8 +207,6 @@ class MainActivity : AppCompatActivity() , OnMapReadyCallback {
         ) {
             return
         }
-
-        googleMap?.isMyLocationEnabled = true
 
         val database: FirebaseDatabase = FirebaseDatabase.getInstance()
         val ref: DatabaseReference = database.getReference(crtLocation)
@@ -212,7 +219,7 @@ class MainActivity : AppCompatActivity() , OnMapReadyCallback {
 
 
     private val locationListener = object : ValueEventListener {
-        //     @SuppressLint("LongLogTag")
+//             @SuppressLint("LongLogTag")
         @SuppressLint("UseCompatLoadingForDrawables")
         override fun onDataChange(snapshot: DataSnapshot) {
             if(snapshot.exists()){
@@ -235,10 +242,12 @@ class MainActivity : AppCompatActivity() , OnMapReadyCallback {
                             textName.text = "•"
 
                             val displayMetrics = DisplayMetrics()
+                            @Suppress("DEPRECATION")
                             (this@MainActivity as Activity).windowManager.defaultDisplay.getMetrics(displayMetrics)
                             marker.layoutParams = ViewGroup.LayoutParams(52, ViewGroup.LayoutParams.WRAP_CONTENT)
                             marker.measure(displayMetrics.widthPixels, displayMetrics.heightPixels)
                             marker.layout(0, 0, displayMetrics.widthPixels, displayMetrics.heightPixels)
+                            @Suppress("DEPRECATION")
                             marker.buildDrawingCache()
                             val bitmapIcon = Bitmap.createBitmap(
                                 marker.measuredWidth,
